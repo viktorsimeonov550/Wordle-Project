@@ -424,7 +424,7 @@
             btnHint.TabIndex = 31;
             btnHint.Text = "Hint";
             btnHint.UseVisualStyleBackColor = true;
-            btnHint.Click += GiveHist;
+            btnHint.Click += GiveHint;
             btnHint.MouseClick += HintCounterMouseClick;
             // 
             // labelInstructions

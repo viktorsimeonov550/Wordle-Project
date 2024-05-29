@@ -1,10 +1,15 @@
-using System.Drawing.Text;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
 
 namespace Wordle
 {
     public partial class WordleForm : Form
     {
-        private const string WordsTextFile = @"wordsForWordle.txt";
+        private const string WordsTextFile = @"C:\Users\ivans\Desktop\githubneshta\Wordle\Wordle\wordsForWordle.txt";  // wordsForWordle.txt
         private const int RowLength = 5;
         private const string PlayAgainMessage = "Play again?";
         private int previousRow = 0;
@@ -20,6 +25,9 @@ namespace Wordle
                 tb.MouseClick += this.FocusTextBox;
                 tb.KeyDown += this.MoveCursor;
             }
+            btnSubmit.Click += btnSubmit_Click;
+            btnHint.Click += btnHint_Click;
+            btnReset.Click += btnReset_Click;
         }
         private void FocusTextBox(object sender, MouseEventArgs e)
         {
@@ -43,7 +51,7 @@ namespace Wordle
             {
                 currentTextBoxIndex--;
             }
-            else if (ShouldGoToLeftTextBox(pressedKey, currentTextBoxIndex))
+            else if (ShouldGoToRichtTextBox(pressedKey, currentTextBoxIndex))
             {
                 currentTextBoxIndex++;
             }
@@ -54,7 +62,7 @@ namespace Wordle
 
         private TextBox GetTextBox(int index)
         {
-            string textBoxName = string.Format("textBox{0]", index);
+            string textBoxName = string.Format($"textBox{index}", index);
             return this.Controls[textBoxName] as TextBox;
         }
         private void textBox1_TextChanged(object sender, EventArgs e)
@@ -90,7 +98,7 @@ namespace Wordle
             var userWord = GetInput();
             if (!IsInputValid(userWord))
             {
-                DisplayInvaLidWordMessage();
+                DisplayInvalidWordMessage();
                 return;
             }
 
@@ -138,7 +146,7 @@ namespace Wordle
             }
             return false;
         }
-        private void DisplayInvaLidWordMessage()
+        private void DisplayInvalidWordMessage()
         {
             MessageBox.Show("Plase enter a valid five-letter word.");
         }
@@ -163,7 +171,11 @@ namespace Wordle
                 }
             }
         }
-        private bool WordContainsChar(char ch) => this.currentWord.Contains(ch, StringComparison.OrdinalIgnoreCase);
+        private bool WordContainsChar(char ch)
+        {
+            return this.currentWord.IndexOf(ch.ToString(), StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private bool IsCharOnCorrectIndex(int index, char ch) => this.currentWord[index] == ch;
 
         private bool IsWordGuessed(string attempt)
@@ -221,23 +233,80 @@ namespace Wordle
         }
         private void btnReset_Click(object sender, EventArgs e)
         {
+            this.previousRow = 0;
+            this.hintsCount = 0;
 
+            foreach (TextBox tb in this.Controls.OfType<TextBox>())
+            {
+                tb.Text = string.Empty;
+                tb.BackColor = SystemColors.Window;
+                tb.ReadOnly = false;
+                tb.Enabled = true;
+            }
+
+            btnSubmit.Enabled = true;
+            btnHint.Enabled = true;
+
+            btnReset.Text = "Reset";
+
+            StartNewGame();
         }
-        private void GameRestart(object sender, EventArgs e)
+
+        private void btnSubmit_Click(object sender, EventArgs e)
         {
-            Application.Restart();
+            var userWord = GetInput();
+            if (!IsInputValid(userWord))
+            {
+                DisplayInvalidWordMessage();
+                return;
+            }
+
+            ColorBoxes();
+
+            if (IsWordGuessed(userWord))
+            {
+                FinalizeWinGame();
+                return;
+            }
+
+            if (IsCurrentRowLast())
+            {
+                FinalizeLostGame();
+                return;
+            }
+
+            ModifyTextBoxesAvailability(false);
+            previousRow++;
+            ModifyTextBoxesAvailability(true);
         }
-        private void GiveHist(object sender, EventArgs e)
+
+        private void btnHint_Click(object sender, EventArgs e)
         {
-            var unavailablePositions = GeetUnavaillblePositions();
+            var unavailablePositions = GetUnavailablePositions();
             if (unavailablePositions.Count == RowLength)
             {
-                ShowInvalidUseOfHintMassage();
+                ShowInvalidUseOfHintMessage();
                 return;
             }
             RevealRandomWordLetter(unavailablePositions);
         }
-        private List<int> GeetUnavaillblePositions()
+
+
+        private void GameRestart(object sender, EventArgs e)
+        {
+            Application.Restart();
+        }
+        private void GiveHint(object sender, EventArgs e)
+        {
+            var unavailablePositions = GetUnavailablePositions();
+            if (unavailablePositions.Count == RowLength)
+            {
+                ShowInvalidUseOfHintMessage();
+                return;
+            }
+            RevealRandomWordLetter(unavailablePositions);
+        }
+        private List<int> GetUnavailablePositions()
         {
             var firstIndexOnRow = GetFirstTextBoxIndexOnRow();
             var positions = new List<int>();
@@ -252,7 +321,7 @@ namespace Wordle
             }
             return positions;
         }
-        private void ShowInvalidUseOfHintMassage()
+        private void ShowInvalidUseOfHintMessage()
         {
             MessageBox.Show("Free up a space for a hint.");
             this.btnSubmit.Focus();
@@ -264,7 +333,7 @@ namespace Wordle
             while (true)
             {
                 var randomIndex = random.Next(1, RowLength + 1);
-                var randomTexBoxIndex = this.previousRow * RowLength + randomIndex;              
+                var randomTexBoxIndex = this.previousRow * RowLength + randomIndex;
                 var textBox = GetTextBox(randomTexBoxIndex);
                 if (textBox.Text != String.Empty)
                 {
